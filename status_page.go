@@ -29,16 +29,18 @@ func (s *Status[T]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Status[T]) genTopLevelHTML(v reflect.Value) (*html.Node, error) {
-	root := html.Node{
-		Type:     html.DocumentNode,
+	root := html.Node{Type: html.DocumentNode}
+	root.AppendChild(&html.Node{
+		Type:     html.DoctypeNode,
 		DataAtom: atom.Html,
-	}
-	head := html.Node{
-		Type:     html.ElementNode,
-		DataAtom: atom.Head,
-		Attr:     []html.Attribute{},
-	}
-	root.AppendChild(&head)
+		Data:     atom.Html.String(),
+	})
+	htmlElem := createElemAtom(atom.Html)
+	root.AppendChild(htmlElem)
+
+	head := createElemAtom(atom.Head)
+
+	htmlElem.AppendChild(head)
 	title := createElemAtom(atom.Title)
 	title.AppendChild(textNode(s.title))
 	head.AppendChild(title)
@@ -47,7 +49,8 @@ func (s *Status[T]) genTopLevelHTML(v reflect.Value) (*html.Node, error) {
 	head.AppendChild(header)
 
 	body := createElemAtom(atom.Body)
-	root.AppendChild(body)
+	htmlElem.AppendChild(body)
+
 	// TODO: add CSS references, etc. to the HEAD element
 	bodyNodes, bodyGenErr := s.genValSections(v)
 	if bodyGenErr != nil {
