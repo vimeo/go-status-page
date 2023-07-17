@@ -100,6 +100,11 @@ func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
 	case reflect.Map:
 	case reflect.Array, reflect.Slice:
 	case reflect.Pointer:
+		if v.IsNil() {
+			return []*html.Node{textNode(v.Type().String() + "(nil)")}, nil
+		}
+		// Delegate after following the bouncing ball
+		return s.genValSection(v.Elem())
 	case reflect.Bool:
 		// TODO: wrap this text node in an element node so we can key some CSS styling
 		return []*html.Node{textNode(strconv.FormatBool(v.Bool()))}, nil
