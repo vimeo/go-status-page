@@ -144,7 +144,3 @@ func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
 	}
 	panic("unimplemented")
 }
-
-func (s *Status[T]) genStructTable(v reflect.Value) ([]*html.Node, error) {
-	panic("unimplemented")
-}
