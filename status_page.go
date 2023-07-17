@@ -39,30 +39,15 @@ func (s *Status[T]) genTopLevelHTML(v reflect.Value) (*html.Node, error) {
 		Attr:     []html.Attribute{},
 	}
 	root.AppendChild(&head)
-	title := html.Node{
-		Type:     html.ElementNode,
-		DataAtom: atom.Title,
-	}
-	title.AppendChild(&html.Node{
-		Type: html.TextNode,
-		Data: s.title,
-	})
-	head.AppendChild(&title)
-	header := html.Node{
-		Type:     html.ElementNode,
-		DataAtom: atom.H1,
-	}
-	header.AppendChild(&html.Node{
-		Type: html.TextNode,
-		Data: s.title,
-	})
-	head.AppendChild(&header)
+	title := createElemAtom(atom.Title)
+	title.AppendChild(textNode(s.title))
+	head.AppendChild(title)
+	header := createElemAtom(atom.H1)
+	header.AppendChild(textNode(s.title))
+	head.AppendChild(header)
 
-	body := html.Node{
-		Type:     html.ElementNode,
-		DataAtom: atom.Body,
-	}
-	root.AppendChild(&body)
+	body := createElemAtom(atom.Body)
+	root.AppendChild(body)
 	// TODO: add CSS references, etc. to the HEAD element
 	bodyNodes, bodyGenErr := s.genValSections(v)
 	if bodyGenErr != nil {
@@ -70,7 +55,7 @@ func (s *Status[T]) genTopLevelHTML(v reflect.Value) (*html.Node, error) {
 	}
 	for _, bn := range bodyNodes {
 		// add a horizontal rule to separate sections
-		body.AppendChild(&html.Node{Type: html.ElementNode, DataAtom: atom.Hr})
+		body.AppendChild(createElemAtom(atom.Hr))
 		body.AppendChild(bn)
 	}
 
@@ -117,47 +102,29 @@ func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
 	case reflect.Pointer:
 	case reflect.Bool:
 		// TODO: wrap this text node in an element node so we can key some CSS styling
-		return []*html.Node{{
-			Type: html.TextNode,
-			Data: strconv.FormatBool(v.Bool()),
-		}}, nil
+		return []*html.Node{textNode(strconv.FormatBool(v.Bool()))}, nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		// TODO: wrap this text node in an element node so we can key some CSS styling
-		return []*html.Node{{
-			Type: html.TextNode,
-			Data: strconv.FormatInt(v.Int(), 10) + " (" + strconv.FormatInt(v.Int(), 16) + ")",
-		}}, nil
+		return []*html.Node{textNode(strconv.FormatInt(v.Int(), 10) + " (" + strconv.FormatInt(v.Int(), 16) + ")")}, nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		// TODO: wrap this text node in an element node so we can key some CSS styling
-		return []*html.Node{{
-			Type: html.TextNode,
-			Data: strconv.FormatUint(v.Uint(), 10) + " (" + strconv.FormatUint(v.Uint(), 16) + ")",
-		}}, nil
+		return []*html.Node{textNode(strconv.FormatUint(v.Uint(), 10) + " (" + strconv.FormatUint(v.Uint(), 16) + ")")}, nil
 	case reflect.UnsafePointer:
 		vp := v.UnsafePointer()
-		return []*html.Node{{
-			Type: html.TextNode,
-			Data: strconv.FormatUint(uint64(uintptr(vp)), 10) + " (" + strconv.FormatUint(uint64(uintptr(vp)), 16) + ")",
-		}}, nil
+		return []*html.Node{textNode(strconv.FormatUint(uint64(uintptr(vp)), 10) + " (" + strconv.FormatUint(uint64(uintptr(vp)), 16) + ")")}, nil
 	case reflect.Float32, reflect.Float64:
 		bs := 32
 		if k == reflect.Float64 {
 			bs = 64
 		}
 		// TODO: wrap this text node in an element node so we can key some CSS styling
-		return []*html.Node{{
-			Type: html.TextNode,
-			Data: strconv.FormatFloat(v.Float(), 'g', -1, bs),
-		}}, nil
+		return []*html.Node{textNode(strconv.FormatFloat(v.Float(), 'g', -1, bs))}, nil
 	case reflect.Complex64, reflect.Complex128:
 		bs := 64
 		if k == reflect.Complex128 {
 			bs = 128
 		}
-		return []*html.Node{{
-			Type: html.TextNode,
-			Data: strconv.FormatComplex(v.Complex(), 'g', -1, bs),
-		}}, nil
+		return []*html.Node{textNode(strconv.FormatComplex(v.Complex(), 'g', -1, bs))}, nil
 	case reflect.String:
 		return []*html.Node{{
 			Type: html.TextNode,
