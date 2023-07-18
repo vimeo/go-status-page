@@ -105,6 +105,10 @@ func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
 	case reflect.String:
 		return []*html.Node{textNode(v.String())}, nil
 	case reflect.Chan:
+		if v.IsNil() {
+			return []*html.Node{textNode(v.Type().String() + "(nil)")}, nil
+		}
+		return []*html.Node{textNode(v.Type().String() + fmt.Sprintf("capacity %d; len %d", v.Cap(), v.Len()))}, nil
 	case reflect.Func:
 		return s.genFuncNodes(v)
 	default:
