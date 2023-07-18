@@ -52,7 +52,7 @@ func (s *Status[T]) genTopLevelHTML(v reflect.Value) (*html.Node, error) {
 	htmlElem.AppendChild(body)
 
 	// TODO: add CSS references, etc. to the HEAD element
-	bodyNodes, bodyGenErr := s.genValSections(v)
+	bodyNodes, bodyGenErr := s.genValSection(v)
 	if bodyGenErr != nil {
 		return nil, bodyGenErr
 	}
@@ -63,31 +63,6 @@ func (s *Status[T]) genTopLevelHTML(v reflect.Value) (*html.Node, error) {
 	}
 
 	return &root, nil
-}
-
-func (s *Status[T]) genValSections(v reflect.Value) ([]*html.Node, error) {
-	k := v.Kind()
-	switch k {
-	case reflect.Struct:
-	case reflect.Map:
-	case reflect.Array, reflect.Slice:
-	case reflect.Pointer:
-	case reflect.UnsafePointer:
-	case reflect.Chan:
-	case reflect.Interface:
-		// primitive types that don't require any recursion/traversal
-	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
-		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128, reflect.String, reflect.Func:
-		ns, nErr := s.genValSection(v)
-		if nErr != nil {
-			return nil, fmt.Errorf("failed to generate primitive fields: %w", nErr)
-		}
-		return ns, nil
-	default:
-		panic(fmt.Sprintf("unhandled kind %s (type %T)", k, v.Type()))
-	}
-	panic("unimplemented")
 }
 
 func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
