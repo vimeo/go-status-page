@@ -78,7 +78,7 @@ func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
 		return ns, nil
 	case reflect.Map:
 	case reflect.Array, reflect.Slice:
-	case reflect.Pointer:
+	case reflect.Pointer, reflect.Interface:
 		if v.IsNil() {
 			return []*html.Node{textNode(v.Type().String() + "(nil)")}, nil
 		}
@@ -89,13 +89,13 @@ func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
 		return []*html.Node{textNode(strconv.FormatBool(v.Bool()))}, nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		// TODO: wrap this text node in an element node so we can key some CSS styling
-		return []*html.Node{textNode(strconv.FormatInt(v.Int(), 10) + " (" + strconv.FormatInt(v.Int(), 16) + ")")}, nil
+		return []*html.Node{textNode(strconv.FormatInt(v.Int(), 10) + " (0x" + strconv.FormatInt(v.Int(), 16) + ")")}, nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		// TODO: wrap this text node in an element node so we can key some CSS styling
-		return []*html.Node{textNode(strconv.FormatUint(v.Uint(), 10) + " (" + strconv.FormatUint(v.Uint(), 16) + ")")}, nil
+		return []*html.Node{textNode(strconv.FormatUint(v.Uint(), 10) + " (0x" + strconv.FormatUint(v.Uint(), 16) + ")")}, nil
 	case reflect.UnsafePointer:
 		vp := v.UnsafePointer()
-		return []*html.Node{textNode(strconv.FormatUint(uint64(uintptr(vp)), 10) + " (" + strconv.FormatUint(uint64(uintptr(vp)), 16) + ")")}, nil
+		return []*html.Node{textNode(strconv.FormatUint(uint64(uintptr(vp)), 10) + " (0x" + strconv.FormatUint(uint64(uintptr(vp)), 16) + ")")}, nil
 	case reflect.Float32, reflect.Float64:
 		// TODO: wrap this text node in an element node so we can key some CSS styling
 		return []*html.Node{textNode(strconv.FormatFloat(v.Float(), 'g', -1, v.Type().Bits()))}, nil
@@ -103,10 +103,7 @@ func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
 		// TODO: wrap this text node in an element node so we can key some CSS styling
 		return []*html.Node{textNode(strconv.FormatComplex(v.Complex(), 'g', -1, v.Type().Bits()))}, nil
 	case reflect.String:
-		return []*html.Node{{
-			Type: html.TextNode,
-			Data: v.String(),
-		}}, nil
+		return []*html.Node{textNode(v.String())}, nil
 	case reflect.Chan:
 	case reflect.Func:
 		return s.genFuncNodes(v)
