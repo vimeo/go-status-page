@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"runtime"
 	"strconv"
 
 	"golang.org/x/net/html"
@@ -115,10 +116,18 @@ func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
 		}}, nil
 	case reflect.Chan:
 	case reflect.Func:
-	case reflect.Interface:
-
+		return s.genFuncNodes(v)
 	default:
 		panic(fmt.Sprintf("unhandled kind %s (type %T)", k, v.Type()))
 	}
 	panic("unimplemented")
+}
+
+func (s *Status[T]) genFuncNodes(v reflect.Value) ([]*html.Node, error) {
+	if v.IsNil() {
+		return []*html.Node{textNode(v.Type().String() + "(nil)")}, nil
+	}
+	fnPtr := uintptr(v.UnsafePointer())
+	fn := runtime.FuncForPC(fnPtr)
+	return []*html.Node{textNode(v.Type().String() + "(0x" + strconv.FormatUint(uint64(fnPtr), 16) + "): " + fn.Name())}, nil
 }
