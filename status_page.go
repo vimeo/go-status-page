@@ -78,6 +78,7 @@ func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
 		return ns, nil
 	case reflect.Map:
 	case reflect.Array, reflect.Slice:
+		return s.genSliceArrayTable(v)
 	case reflect.Pointer, reflect.Interface:
 		if v.IsNil() {
 			return []*html.Node{textNode(v.Type().String() + "(nil)")}, nil
