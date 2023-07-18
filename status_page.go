@@ -97,18 +97,11 @@ func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
 		vp := v.UnsafePointer()
 		return []*html.Node{textNode(strconv.FormatUint(uint64(uintptr(vp)), 10) + " (" + strconv.FormatUint(uint64(uintptr(vp)), 16) + ")")}, nil
 	case reflect.Float32, reflect.Float64:
-		bs := 32
-		if k == reflect.Float64 {
-			bs = 64
-		}
 		// TODO: wrap this text node in an element node so we can key some CSS styling
-		return []*html.Node{textNode(strconv.FormatFloat(v.Float(), 'g', -1, bs))}, nil
+		return []*html.Node{textNode(strconv.FormatFloat(v.Float(), 'g', -1, v.Type().Bits()))}, nil
 	case reflect.Complex64, reflect.Complex128:
-		bs := 64
-		if k == reflect.Complex128 {
-			bs = 128
-		}
-		return []*html.Node{textNode(strconv.FormatComplex(v.Complex(), 'g', -1, bs))}, nil
+		// TODO: wrap this text node in an element node so we can key some CSS styling
+		return []*html.Node{textNode(strconv.FormatComplex(v.Complex(), 'g', -1, v.Type().Bits()))}, nil
 	case reflect.String:
 		return []*html.Node{{
 			Type: html.TextNode,
