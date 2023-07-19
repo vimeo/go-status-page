@@ -17,6 +17,11 @@ type Status[T any] struct {
 	cb    func() T
 }
 
+// New constructs a new Status[T] with the passed callback.
+func New[T any](title string, cb func() T) *Status[T] {
+	return &Status[T]{title: title, cb: cb}
+}
+
 func (s *Status[T]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	v := s.cb()
 	rootN, genErr := s.genTopLevelHTML(reflect.ValueOf(v))
