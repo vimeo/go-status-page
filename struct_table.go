@@ -9,6 +9,9 @@ import (
 )
 
 func needsTable(t reflect.Type) bool {
+	if t.Implements(stringerReflectType) {
+		return false
+	}
 	switch t.Kind() {
 	case reflect.Map, reflect.Array, reflect.Slice, reflect.Struct:
 		return true

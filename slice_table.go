@@ -10,6 +10,9 @@ import (
 )
 
 func sliceArrayValScalar(et reflect.Type) bool {
+	if et.Implements(stringerReflectType) {
+		return true
+	}
 	switch et.Kind() {
 	case reflect.Bool,
 		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
