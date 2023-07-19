@@ -19,6 +19,11 @@ func needsTable(t reflect.Type) bool {
 	}
 }
 
+func shouldSkipField(f reflect.StructField) bool {
+	v, ok := f.Tag.Lookup("statuspage")
+	return ok && v == "-"
+}
+
 func (s *Status[T]) genStructTable(v reflect.Value) ([]*html.Node, error) {
 	if v.Kind() != reflect.Struct {
 		panic(fmt.Errorf("non-struct kind: %s type %s", v.Kind(), v.Type()))
@@ -36,11 +41,13 @@ func (s *Status[T]) genStructTable(v reflect.Value) ([]*html.Node, error) {
 			// skip the unexported fields for now
 			continue
 		}
-		// TODO: pull out into a helper
-		if v, ok := field.Tag.Lookup("statuspage"); ok && v == "-" {
+		if shouldSkipField(field) {
 			// The caller asked us to skip this
 			continue
 		}
+		// TODO: separate out interface-typed fields, so we can put
+		// them in the right section depending on what value is present
+		// internally.
 		if needsTable(field.Type) {
 			tableFields = append(tableFields, field)
 			continue
@@ -64,7 +71,7 @@ func (s *Status[T]) genStructTable(v reflect.Value) ([]*html.Node, error) {
 
 			valCol := createElemAtom(atom.Td)
 			row.AppendChild(valCol)
-			sv := v.FieldByName(sf.Name)
+			sv := v.FieldByIndex(sf.Index)
 			// We've already validated that this is a simple-enough type, so use
 			// genValSection to render into a (small number of?) nodes
 			valNs, valSectionErr := s.genValSection(sv)
@@ -88,7 +95,7 @@ func (s *Status[T]) genStructTable(v reflect.Value) ([]*html.Node, error) {
 		section.AppendChild(fieldName)
 		section.AppendChild(createElemAtom(atom.Br))
 
-		sv := v.FieldByName(tf.Name)
+		sv := v.FieldByIndex(tf.Index)
 		valNs, valSectionErr := s.genValSection(sv)
 		if valSectionErr != nil {
 			return nil, fmt.Errorf("failed to render field %q: %w", tf.Name, valSectionErr)
