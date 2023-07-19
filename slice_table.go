@@ -227,7 +227,7 @@ func (s *Status[T]) arraySliceStructDataRow(v reflect.Value, nCols int) (*html.N
 
 func (s *Status[T]) structSliceArrayTable(v reflect.Value) (*html.Node, error) {
 	tbl := createElemAtom(atom.Table)
-	h, nCols, hErr := arraySliceStructHeaderRow(v.Type())
+	h, nCols, hErr := arraySliceStructHeaderRow(v.Type().Elem())
 	if hErr != nil {
 		return nil, fmt.Errorf("failed to generate header for type %s: %w", v.Type(), hErr)
 	}
