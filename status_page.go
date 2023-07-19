@@ -135,7 +135,6 @@ func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
 	default:
 		panic(fmt.Sprintf("unhandled kind %s (type %T)", k, v.Type()))
 	}
-	panic("unimplemented")
 }
 
 func (s *Status[T]) genFuncNodes(v reflect.Value) ([]*html.Node, error) {
