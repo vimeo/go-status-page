@@ -9,7 +9,7 @@ import (
 )
 
 func needsTable(t reflect.Type) bool {
-	if t.Implements(stringerReflectType) {
+	if eligibleStringer(t) {
 		return false
 	}
 	switch t.Kind() {

@@ -11,8 +11,6 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-var stringerReflectType = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
-
 // Status implements net/http.Handler, and provides a status page for the value returned by cb
 type Status[T any] struct {
 	title string
@@ -76,7 +74,7 @@ func (s *Status[T]) genTopLevelHTML(v reflect.Value) (*html.Node, error) {
 func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
 	k := v.Kind()
 
-	if v.Type().Implements(stringerReflectType) {
+	if !v.IsNil() && eligibleStringer(v.Type()) {
 		return []*html.Node{textNode(v.Interface().(fmt.Stringer).String())}, nil
 	}
 	switch k {
