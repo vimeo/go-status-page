@@ -71,10 +71,22 @@ func (s *Status[T]) genTopLevelHTML(v reflect.Value) (*html.Node, error) {
 	return &root, nil
 }
 
+func isNilableType(k reflect.Kind) bool {
+	switch k {
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer,
+		reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
 	k := v.Kind()
 
-	if !v.IsNil() && eligibleStringer(v.Type()) {
+	// If this type implements fmt.Stringer, delegate to that
+	// implementation as long as the value isn't nil.
+	if eligibleStringer(v.Type()) && !(isNilableType(k) && v.IsNil()) {
 		return []*html.Node{textNode(v.Interface().(fmt.Stringer).String())}, nil
 	}
 	switch k {
