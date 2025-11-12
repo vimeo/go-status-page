@@ -250,15 +250,13 @@ func (s *Status[T]) structSliceArrayTable(v reflect.Value) (*html.Node, error) {
 		return nil, fmt.Errorf("failed to generate header for type %s: %w", v.Type(), hErr)
 	}
 	tbl.AppendChild(h)
-	offset := 0
-	for ev := range v.Seq() {
+	for offset, ev := range v.Seq2() {
 		dr, drErr := s.arraySliceStructDataRow(ev, nCols)
 		if drErr != nil {
-			return nil, fmt.Errorf("failed to generate row %d for type %s: %w", offset, v.Type(), drErr)
+			return nil, fmt.Errorf("failed to generate row %d for type %s: %w", offset.Int(), v.Type(), drErr)
 		}
 		tbl.AppendChild(dr)
 		// TODO: should we have an index column?
-		offset++
 	}
 	return tbl, nil
 }

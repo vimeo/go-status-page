@@ -3,6 +3,7 @@ package statuspage
 import (
 	"fmt"
 	"reflect"
+	"slices"
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
@@ -41,7 +42,20 @@ func (s *Status[T]) genStructTable(v reflect.Value) ([]*html.Node, error) {
 	fields := reflect.VisibleFields(vt)
 	simpleFields := make([]reflect.StructField, 0, len(fields))
 	tableFields := make([]reflect.StructField, 0, len(fields))
+	nilParentFields := [][]int{}
+FIELDITER:
 	for _, field := range fields {
+		// we have to skip its children if it's anonymous and nil, too
+		if field.Anonymous && field.Type.Kind() == reflect.Pointer && v.FieldByIndex(field.Index).IsNil() {
+			nilParentFields = append(nilParentFields, field.Index)
+			continue
+		}
+		for _, idx := range nilParentFields {
+			// skip anything that's embedded, but has a nil parent
+			if len(field.Index) > len(idx) && slices.Equal(idx, field.Index[:len(idx)]) {
+				continue FIELDITER
+			}
+		}
 		if !field.IsExported() {
 			// skip the unexported fields for now
 			continue
@@ -67,6 +81,7 @@ func (s *Status[T]) genStructTable(v reflect.Value) ([]*html.Node, error) {
 		out = append(out, simpleTable)
 
 		// iterate over the simple fields and add rows for each row.
+	SIMPLEFIELDITER:
 		for _, sf := range simpleFields {
 			row := createElemAtom(atom.Tr)
 			simpleTable.AppendChild(row)
@@ -76,6 +91,13 @@ func (s *Status[T]) genStructTable(v reflect.Value) ([]*html.Node, error) {
 
 			valCol := createElemAtom(atom.Td)
 			row.AppendChild(valCol)
+			for _, idx := range nilParentFields {
+				// skip anything that's embedded, but has a nil parent
+				if len(sf.Index) > len(idx) && slices.Equal(idx, sf.Index[:len(idx)]) {
+					valCol.AppendChild(textNode("parent nil"))
+					continue SIMPLEFIELDITER
+				}
+			}
 			sv := v.FieldByIndex(sf.Index)
 			// We've already validated that this is a simple-enough type, so use
 			// genValSection to render into a (small number of?) nodes
