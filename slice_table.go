@@ -21,8 +21,7 @@ func sliceArrayValScalar(et reflect.Type) bool {
 		reflect.Float32, reflect.Float64,
 		reflect.Complex64, reflect.Complex128,
 		reflect.String,
-		reflect.Chan,
-		reflect.Func:
+		reflect.Chan:
 		return true
 	case reflect.Array:
 		// size 0  arrays are scalar
@@ -41,6 +40,9 @@ func sliceArrayValScalar(et reflect.Type) bool {
 	case reflect.Pointer:
 		// strip off a layer of pointers
 		return sliceArrayValScalar(et.Elem())
+	case reflect.Func:
+		// TODO: swtich to et.CanSeq() || et.CanSeq2() and generate linky things
+		return true
 	default:
 		panic(fmt.Errorf("unhandled element kind: %s type %s", et.Kind(), et))
 	}
@@ -66,6 +68,15 @@ func (s *Status[T]) genSliceArrayTable(v reflect.Value) ([]*html.Node, error) {
 		capNode.AppendChild(textNode("len() = " + strconv.Itoa(v.Len())))
 		capNode.AppendChild(createElemAtom(atom.Br))
 		capNode.AppendChild(textNode("cap() = " + strconv.Itoa(v.Cap())))
+	case reflect.Func:
+		capNode.AppendChild(createElemAtom(atom.Br))
+		if v.Type().CanSeq2() {
+			capNode.AppendChild(textNode("iter.Seq: (" + v.Type().In(0).In(0).String() + ", " + v.Type().In(0).In(1).String() + ")"))
+		} else if v.Type().CanSeq() {
+			capNode.AppendChild(textNode("iter.Seq: " + v.Type().In(0).In(0).String()))
+		} else {
+			panic("non-iter.Seq2? passed to genSliceArrayTable: " + v.Type().String())
+		}
 	default:
 		panic(fmt.Errorf("non-slice/array kind: %s type %s", v.Kind(), v.Type()))
 	}
@@ -96,6 +107,9 @@ func (s *Status[T]) genSliceArrayTable(v reflect.Value) ([]*html.Node, error) {
 			return nil, fmt.Errorf("failed to generate table for slice/array of type %s: %w", v.Type(), slErr)
 		}
 		tbl = slNode
+	case reflect.Func:
+		// We're only here if the function is iterable
+		panic("iterator element-type not handled as scalar array 🤷 (should have been handled in sliceArrayValScalar)")
 	case reflect.Interface:
 		// This will be fun: we'll have to check whether all the implementations are scalars, structs, etc.
 		elemT, uniform := allIfaceSliceElemsSame(v)
@@ -123,22 +137,24 @@ func (s *Status[T]) genSliceArrayTable(v reflect.Value) ([]*html.Node, error) {
 }
 
 func (s *Status[T]) scalarSliceArrayTable(v reflect.Value) (*html.Node, error) {
-	// one-column table for this slice or array
+	// One-column table for this slice, array or iter.Seq
 	tbl := createElemAtom(atom.Table)
-	for z := 0; z < v.Len(); z++ {
+	offset := 0
+	for ev := range v.Seq() {
 		row := createElemAtom(atom.Tr)
 		tbl.AppendChild(row)
 		e := createElemAtom(atom.Td)
 		row.AppendChild(e)
 		// since we're working with a scalar-ish value, we can append children for all return values from genValSection here.
-		ns, rendErr := s.genValSection(v.Index(z))
+		ns, rendErr := s.genValSection(ev)
 		if rendErr != nil {
 			return nil, fmt.Errorf("failed to render table element at index %d in slice/array of type %s: %w",
-				z, v.Type(), rendErr)
+				offset, v.Type(), rendErr)
 		}
 		for _, n := range ns {
 			e.AppendChild(n)
 		}
+		offset++
 	}
 	return tbl, nil
 }
@@ -186,7 +202,7 @@ func allIfaceSliceElemsSame(v reflect.Value) (reflect.Type, bool) {
 			t = iv.Elem().Type()
 			continue
 		}
-		if t != nil && iv.Elem().Type() != t {
+		if iv.Elem().Type() != t {
 			return nil, false
 		}
 	}
@@ -235,14 +251,15 @@ func (s *Status[T]) structSliceArrayTable(v reflect.Value) (*html.Node, error) {
 		return nil, fmt.Errorf("failed to generate header for type %s: %w", v.Type(), hErr)
 	}
 	tbl.AppendChild(h)
-	for z := 0; z < v.Len(); z++ {
-		ev := v.Index(z)
+	offset := 0
+	for ev := range v.Seq() {
 		dr, drErr := s.arraySliceStructDataRow(ev, nCols)
 		if drErr != nil {
-			return nil, fmt.Errorf("failed to generate row %d for type %s: %w", z, v.Type(), drErr)
+			return nil, fmt.Errorf("failed to generate row %d for type %s: %w", offset, v.Type(), drErr)
 		}
 		tbl.AppendChild(dr)
 		// TODO: should we have an index column?
+		offset++
 	}
 	return tbl, nil
 }
@@ -254,14 +271,15 @@ func (s *Status[T]) ifaceSliceArrayTable(v reflect.Value, uniformType reflect.Ty
 		return nil, fmt.Errorf("failed to generate header for type %s: %w", v.Type(), hErr)
 	}
 	tbl.AppendChild(h)
-	for z := 0; z < v.Len(); z++ {
-		ev := v.Index(z)
+	offset := 0
+	for ev := range v.Seq() {
 		dr, drErr := s.arraySliceStructDataRow(ev, nCols)
 		if drErr != nil {
-			return nil, fmt.Errorf("failed to generate row %d for type %s: %w", z, v.Type(), drErr)
+			return nil, fmt.Errorf("failed to generate row %d for type %s: %w", offset, v.Type(), drErr)
 		}
 		tbl.AppendChild(dr)
 		// TODO: should we have an index column?
+		offset++
 	}
 	return tbl, nil
 }
@@ -275,25 +293,21 @@ func (s *Status[T]) sliceArraySliceValTable(v reflect.Value) (*html.Node, error)
 	case reflect.Array:
 		maxElemLen = v.Type().Len()
 	case reflect.Slice:
-		for z := 0; z < v.Len(); z++ {
-			ev := v.Index(z)
+		for ev := range v.Seq() {
 			if ev.IsNil() {
 				// nil, keep going
 				continue
 			}
-			elemLen := ev.Len()
-			if elemLen > maxElemLen {
-				maxElemLen = elemLen
-			}
+			maxElemLen = max(ev.Len(), maxElemLen)
 		}
 	}
 
 	tbl := createElemAtom(atom.Table)
+	offset := 0
 	// now, we can generate the table
-	for z := 0; z < v.Len(); z++ {
+	for ev := range v.Seq() {
 		row := createElemAtom(atom.Tr)
 		tbl.AppendChild(row)
-		ev := v.Index(z)
 		if ev.Kind() != reflect.Array {
 			// if it's not an array, iteratively unwrap
 			for {
@@ -317,19 +331,21 @@ func (s *Status[T]) sliceArraySliceValTable(v reflect.Value) (*html.Node, error)
 				ev = ev.Elem()
 			}
 		}
-		for i := 0; i < ev.Len(); i++ {
-			colVal := ev.Index(i)
+		colOffset := 0
+		for colVal := range ev.Seq() {
 			colElem := createElemAtom(atom.Td)
 			row.AppendChild(colElem)
 			ns, tblCellGenErr := s.genValSection(colVal)
 			if tblCellGenErr != nil {
 				return nil, fmt.Errorf("failed to generate html for value at offset [%d][%d] in array/slice of type %s: %w",
-					z, i, v.Type(), tblCellGenErr)
+					offset, colOffset, v.Type(), tblCellGenErr)
 			}
 			for _, n := range ns {
 				colElem.AppendChild(n)
 			}
+			colOffset++
 		}
+		offset++
 	}
 	return tbl, nil
 }

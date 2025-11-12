@@ -17,6 +17,8 @@ func needsTable(t reflect.Type) bool {
 		return true
 	case reflect.Pointer:
 		return needsTable(t.Elem())
+	case reflect.Func:
+		return t.CanSeq() || t.CanSeq2()
 	default:
 		return false
 	}
