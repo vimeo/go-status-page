@@ -34,9 +34,9 @@ func (s *Status[T]) simpleTableCell(v reflect.Value) (*html.Node, error) {
 	return cell, nil
 }
 
-func (s *Status[T]) genMapTable(v reflect.Value) ([]*html.Node, error) {
-	if v.Kind() != reflect.Map {
-		panic(fmt.Errorf("non-map kind: %s type %s", v.Kind(), v.Type()))
+func (s *Status[T]) genMapOrSeq2Table(v reflect.Value) ([]*html.Node, error) {
+	if v.Kind() != reflect.Map && (v.Kind() != reflect.Func || v.Type().CanSeq2()) {
+		panic(fmt.Errorf("non-map/seq2 kind: %s type %s", v.Kind(), v.Type()))
 	}
 
 	baseTable := createElemAtom(atom.Table)
@@ -52,7 +52,16 @@ func (s *Status[T]) genMapTable(v reflect.Value) ([]*html.Node, error) {
 	headerRow.AppendChild(valHeader)
 	valHeader.AppendChild(textNode(mapValueHeader))
 
-	valType := v.Type().Elem()
+	var valType reflect.Type
+	switch v.Kind() {
+	case reflect.Map:
+		valType = v.Type().Elem()
+	case reflect.Func:
+		// this has to be an iter.Seq2
+		valType = v.Type().In(0).In(1)
+	default:
+		panic(fmt.Errorf("non-map/func kind: %s type %s", v.Kind(), v.Type()))
+	}
 
 	valSet := isSet(valType)
 	if valSet {
@@ -62,11 +71,7 @@ func (s *Status[T]) genMapTable(v reflect.Value) ([]*html.Node, error) {
 
 	// header row for the map key if applicable
 	var hRowKey *html.Node
-	iter := v.MapRange()
-	for iter.Next() {
-		ikey := iter.Key()
-		ival := iter.Value()
-
+	for ikey, ival := range v.Seq2() {
 		if valSet {
 			// ival is actually a slice of valType where the values are ival's map keys, make it so!
 			// ex. map[string]struct{}{"dog":struct{}, "cat":struct{}} => ival should be []string{"dog", "cat"}
@@ -115,9 +120,6 @@ func (s *Status[T]) genMapTable(v reflect.Value) ([]*html.Node, error) {
 					for _, n := range ns {
 						cell := createElemAtom(atom.Td)
 						row.AppendChild(cell)
-						if genErr != nil {
-							return nil, genErr
-						}
 						cell.AppendChild(n)
 					}
 				}
@@ -173,9 +175,6 @@ func (s *Status[T]) genMapTable(v reflect.Value) ([]*html.Node, error) {
 					for _, n := range ns {
 						cell := createElemAtom(atom.Td)
 						row.AppendChild(cell)
-						if genErr != nil {
-							return nil, genErr
-						}
 						cell.AppendChild(n)
 					}
 				}
@@ -203,11 +202,8 @@ func (s *Status[T]) genMapTable(v reflect.Value) ([]*html.Node, error) {
 				row.AppendChild(nilCell)
 				continue
 			}
-			size := ival.Len()
-			if size > maxSliceLen {
-				size = maxSliceLen
-			}
-			for i := 0; i < size; i++ {
+			size := min(ival.Len(), maxSliceLen)
+			for i := range size {
 				sliceVal := ival.Index(i)
 				if needsTable(sliceVal.Type()) {
 					// TODO

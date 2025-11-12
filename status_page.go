@@ -30,8 +30,14 @@ func (s *Status[T]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if renderErr := html.Render(w, rootN); renderErr != nil {
-		http.Error(w, fmt.Sprintf("failed to render response for struct of type %T: %s", v, genErr), 500)
+		http.Error(w, fmt.Sprintf("failed to render response for struct of type %T: %s", v, renderErr), 500)
 	}
+}
+
+// GenHTMLNodes makes it easy to leverage this package for a more structured/custom status page
+func GenHTMLNodes[T any](val T) ([]*html.Node, error) {
+	s := Status[T]{}
+	return s.genValSection(reflect.ValueOf(val))
 }
 
 func (s *Status[T]) genTopLevelHTML(v reflect.Value) (*html.Node, error) {
@@ -101,7 +107,7 @@ func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
 		if v.IsNil() {
 			return []*html.Node{textNode(v.Type().String() + "(nil)")}, nil
 		}
-		ns, tblErr := s.genMapTable(v)
+		ns, tblErr := s.genMapOrSeq2Table(v)
 		if tblErr != nil {
 			return nil, tblErr
 		}
@@ -150,6 +156,11 @@ func (s *Status[T]) genValSection(v reflect.Value) ([]*html.Node, error) {
 func (s *Status[T]) genFuncNodes(v reflect.Value) ([]*html.Node, error) {
 	if v.IsNil() {
 		return []*html.Node{textNode(v.Type().String() + "(nil)")}, nil
+	}
+	if v.Type().CanSeq2() {
+		return s.genMapOrSeq2Table(v)
+	} else if v.Type().CanSeq() {
+		return s.genSliceArrayTable(v)
 	}
 	fnPtr := uintptr(v.UnsafePointer())
 	fn := runtime.FuncForPC(fnPtr)
