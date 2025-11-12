@@ -120,9 +120,6 @@ func (s *Status[T]) genMapOrSeq2Table(v reflect.Value) ([]*html.Node, error) {
 					for _, n := range ns {
 						cell := createElemAtom(atom.Td)
 						row.AppendChild(cell)
-						if genErr != nil {
-							return nil, genErr
-						}
 						cell.AppendChild(n)
 					}
 				}
@@ -178,9 +175,6 @@ func (s *Status[T]) genMapOrSeq2Table(v reflect.Value) ([]*html.Node, error) {
 					for _, n := range ns {
 						cell := createElemAtom(atom.Td)
 						row.AppendChild(cell)
-						if genErr != nil {
-							return nil, genErr
-						}
 						cell.AppendChild(n)
 					}
 				}
@@ -208,11 +202,8 @@ func (s *Status[T]) genMapOrSeq2Table(v reflect.Value) ([]*html.Node, error) {
 				row.AppendChild(nilCell)
 				continue
 			}
-			size := ival.Len()
-			if size > maxSliceLen {
-				size = maxSliceLen
-			}
-			for i := 0; i < size; i++ {
+			size := min(ival.Len(), maxSliceLen)
+			for i := range size {
 				sliceVal := ival.Index(i)
 				if needsTable(sliceVal.Type()) {
 					// TODO

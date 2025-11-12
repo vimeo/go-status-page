@@ -185,8 +185,7 @@ func arraySliceStructHeaderRow(t reflect.Type) (*html.Node, int, error) {
 // iterates over an array or slice, and returns a type+true if all elements are the one type or nil
 func allIfaceSliceElemsSame(v reflect.Value) (reflect.Type, bool) {
 	t := reflect.Type(nil)
-	for z := 0; z < v.Len(); z++ {
-		iv := v.Index(z)
+	for iv := range v.Seq() {
 		if iv.IsNil() {
 			// interface has nil-type
 			continue
